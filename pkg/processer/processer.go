@@ -1,12 +1,15 @@
-package pkg
+package processer
 
 import (
 	"errors"
+	// "context"
+	// "io/ioutil"
 	"log"
 	"net/http"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
+	// "github.com/Kdaito/accountant-line-bot/module"
 )
 
 type Processer struct {
@@ -56,4 +59,18 @@ func (p *Processer) ReplyMessage(message string, replyToken string) error {
 	})
 
 	return err
+}
+
+func (p *Processer) ExportSheet() {
+	// ctx := context.Background()
+
+	// // サービスアカウントの秘密鍵を読み込む
+	// b, err := ioutil.ReadFile("service-account.json")
+	// if err != nil {
+	// 	log.Fatalf("cannot read service account json file: %v", err)
+	// }
+
+	// サービスアカウントのクライアントを作成する
+	// driveSrv := module.NewDriveService(ctx, b)
+	// sheetsSrv := module.NewSheetsService(ctx, b)
 }

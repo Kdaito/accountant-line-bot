@@ -4,15 +4,15 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Kdaito/accountant-line-bot/pkg"
+	"github.com/Kdaito/accountant-line-bot/pkg/processer"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
 )
 
 type Handler struct {
-	processer *pkg.Processer
+	processer *processer.Processer
 }
 
-func NewHandler(processer *pkg.Processer) *Handler {
+func NewHandler(processer *processer.Processer) *Handler {
 	return &Handler{
 		processer: processer,
 	}

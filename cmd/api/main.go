@@ -20,8 +20,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Kdaito/accountant-line-bot/handler"
-	"github.com/Kdaito/accountant-line-bot/pkg"
+	"github.com/Kdaito/accountant-line-bot/pkg/handler"
+	"github.com/Kdaito/accountant-line-bot/pkg/processer"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 )
 
@@ -37,7 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	processer := pkg.NewProcesser(channelSecret, bot)
+	processer := processer.NewProcesser(channelSecret, bot)
 	handler := handler.NewHandler(processer)
 
 	http.HandleFunc("/callback", handler.HandleCallback)

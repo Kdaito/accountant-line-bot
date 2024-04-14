@@ -1,3 +1,4 @@
 .env
-.server.sh
 
+server.sh
+service-account.json
