@@ -29,6 +29,9 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, req *http.Request) {
 		case webhook.MessageEvent:
 			switch message := e.Message.(type) {
 			case webhook.TextMessageContent:
+				if message.Text == "hello" {
+					h.processer.ExportSheet()
+				}
 				responseMessage := h.processer.AnalyzeTextMessage(message)
 				_ = h.processer.ReplyMessage(responseMessage, e.ReplyToken)
 			default:

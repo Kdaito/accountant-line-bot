@@ -3,6 +3,7 @@ package module
 import (
 	"context"
 	"log"
+	"os"
 
 	"google.golang.org/api/drive/v2"
 	"google.golang.org/api/option"
@@ -22,4 +23,18 @@ func NewDriveService(ctx context.Context, b []byte) *DriveService {
 	return &DriveService{
 		service: srv,
 	}
+}
+
+func (d *DriveService) Upload(parentId string, title string, file *os.File) (string, error) {
+	f := &drive.File{
+		Title: title,
+		Parents: []*drive.ParentReference{{Id: parentId}},
+	}
+
+	r, err := d.service.Files.Insert(f).Media(file).Do()
+	if err != nil {
+		return "", err
+	}
+
+	return r.Id, nil
 }

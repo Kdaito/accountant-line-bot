@@ -2,14 +2,18 @@ package processer
 
 import (
 	"errors"
-	// "context"
-	// "io/ioutil"
+	"os"
+	// "fmt"
+	// "time"
+
+	"context"
+	"io/ioutil"
 	"log"
 	"net/http"
 
+	"github.com/Kdaito/accountant-line-bot/module"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
-	// "github.com/Kdaito/accountant-line-bot/module"
 )
 
 type Processer struct {
@@ -62,15 +66,26 @@ func (p *Processer) ReplyMessage(message string, replyToken string) error {
 }
 
 func (p *Processer) ExportSheet() {
-	// ctx := context.Background()
+	// jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	// timestamp := time.Now().In(jst).Format("2006-01-02-15-04-05")
+	// 複製先のファイルのタイトル
+	// newFileTitle := fmt.Sprintf("%s_Copy", timestamp)
+	ctx := context.Background()
 
-	// // サービスアカウントの秘密鍵を読み込む
-	// b, err := ioutil.ReadFile("service-account.json")
-	// if err != nil {
-	// 	log.Fatalf("cannot read service account json file: %v", err)
-	// }
+	// サービスアカウントの秘密鍵を読み込む
+	b, err := ioutil.ReadFile("service-account.json")
+	if err != nil {
+		log.Fatalf("cannot read service account json file: %v", err)
+	}
 
 	// サービスアカウントのクライアントを作成する
-	// driveSrv := module.NewDriveService(ctx, b)
+	driveSrv := module.NewDriveService(ctx, b)
 	// sheetsSrv := module.NewSheetsService(ctx, b)
+
+	m, err := os.Open("document.txt")
+	if err != nil {
+			log.Fatalf("An error occurred reading the document: %v\n", err)
+	}
+	parentId := os.Getenv("DRIVE_FOLDER_ID")
+	driveSrv.Upload(parentId, "", m)
 }
