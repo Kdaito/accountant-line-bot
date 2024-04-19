@@ -27,7 +27,7 @@ func NewDriveService(ctx context.Context, b []byte) *DriveService {
 
 func (d *DriveService) Upload(parentId string, title string, file *os.File) (string, error) {
 	f := &drive.File{
-		Title: title,
+		Title:   title,
 		Parents: []*drive.ParentReference{{Id: parentId}},
 	}
 

@@ -15,14 +15,9 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"net/http"
 	"os"
 
-	"github.com/Kdaito/accountant-line-bot/pkg/handler"
-	"github.com/Kdaito/accountant-line-bot/pkg/processer"
-	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
+	"github.com/Kdaito/accountant-line-bot/internal/router"
 )
 
 func main() {
@@ -30,24 +25,8 @@ func main() {
 	channelToken := os.Getenv("LINE_CHANNEL_TOKEN")
 	port := os.Getenv("PORT")
 
-	bot, err := messaging_api.NewMessagingApiAPI(
-		channelToken,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+	router := &router.Router{Port: port}
 
-	processer := processer.NewProcesser(channelSecret, bot)
-	handler := handler.NewHandler(processer)
-
-	http.HandleFunc("/callback", handler.HandleCallback)
-
-	if port == "" {
-		port = "2001"
-	}
-
-	fmt.Println("http://localhost:" + port + "/")
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
-	}
+	router.Set(channelSecret, channelToken)
+	router.Run()
 }

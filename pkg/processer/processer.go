@@ -84,7 +84,7 @@ func (p *Processer) ExportSheet() {
 
 	m, err := os.Open("document.txt")
 	if err != nil {
-			log.Fatalf("An error occurred reading the document: %v\n", err)
+		log.Fatalf("An error occurred reading the document: %v\n", err)
 	}
 	parentId := os.Getenv("DRIVE_FOLDER_ID")
 	driveSrv.Upload(parentId, "", m)
