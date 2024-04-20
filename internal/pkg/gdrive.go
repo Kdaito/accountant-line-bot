@@ -1,4 +1,4 @@
-package gdrive
+package pkg
 
 import (
 	"os"

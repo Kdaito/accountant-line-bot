@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Kdaito/accountant-line-bot/internal/gdrive"
+	"github.com/Kdaito/accountant-line-bot/internal/pkg"
 	"github.com/Kdaito/accountant-line-bot/internal/service"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"google.golang.org/api/drive/v2"
@@ -27,7 +27,7 @@ func (r *Router) Set(channelSecret string, channelToken string) {
 	ctx := context.Background()
 
 	// messaging api setting
-	_, err := messaging_api.NewMessagingApiAPI(
+	bot, err := messaging_api.NewMessagingApiAPI(
 		channelToken,
 	)
 	if err != nil {
@@ -49,10 +49,12 @@ func (r *Router) Set(channelSecret string, channelToken string) {
 	// google sheet api setting
 
 	// DI
-	drive := &gdrive.GDrive{Service: driveService}
+	drive := &pkg.GDrive{Service: driveService}
+	message := &pkg.Message{ChannelSecret: channelSecret, Bot: bot}
 
 	callbackService := &service.CallbackService{
-		Drive: drive,
+		Drive:   drive,
+		Message: message,
 	}
 
 	// set routing
