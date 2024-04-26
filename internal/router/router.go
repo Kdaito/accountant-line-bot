@@ -30,6 +30,9 @@ func (r *Router) Set(channelSecret string, channelToken string) {
 	bot, err := messaging_api.NewMessagingApiAPI(
 		channelToken,
 	)
+	blob, err := messaging_api.NewMessagingApiBlobAPI(
+		channelToken,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,7 +53,7 @@ func (r *Router) Set(channelSecret string, channelToken string) {
 
 	// DI
 	drive := &pkg.GDrive{Service: driveService}
-	message := &pkg.Message{ChannelSecret: channelSecret, Bot: bot}
+	message := &pkg.Message{ChannelSecret: channelSecret, Bot: bot, Blob: blob}
 
 	callbackService := &service.CallbackService{
 		Drive:   drive,

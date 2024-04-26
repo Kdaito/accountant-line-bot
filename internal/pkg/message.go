@@ -2,8 +2,11 @@ package pkg
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/Kdaito/accountant-line-bot/internal/types"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
@@ -13,6 +16,7 @@ import (
 type Message struct {
 	ChannelSecret string
 	Bot           *messaging_api.MessagingApiAPI
+	Blob          *messaging_api.MessagingApiBlobAPI
 }
 
 func (m *Message) ParseRequest(w http.ResponseWriter, req *http.Request) ([]*types.ParsedMessage, error) {
@@ -36,7 +40,14 @@ func (m *Message) ParseRequest(w http.ResponseWriter, req *http.Request) ([]*typ
 			case webhook.TextMessageContent:
 				res = append(res, &types.ParsedMessage{
 					MessageType: types.MESSAGE_TYPE_TEXT,
-					Text:        message.Text,
+					Text:        checkMessage(message.Text),
+					ID:          message.Id,
+					ReplyToken:  e.ReplyToken,
+				})
+			case webhook.ImageMessageContent:
+				res = append(res, &types.ParsedMessage{
+					MessageType: types.MESSAGE_TYPE_IMAGE,
+					Text:        "",
 					ID:          message.Id,
 					ReplyToken:  e.ReplyToken,
 				})
@@ -68,4 +79,46 @@ func (m *Message) ReplyMessage(message *types.ParsedMessage) error {
 	})
 
 	return err
+}
+
+func (m *Message) HandleImageContent(messageId string, callback func(*os.File) error) error {
+	content, err := m.Blob.GetMessageContent(messageId)
+
+	if err != nil {
+		return err
+	}
+
+	defer content.Body.Close()
+
+	file, err := m.SaveTmpImage(content.Body)
+
+	if err != nil {
+		return err
+	}
+
+	defer os.Remove(file.Name())
+
+	return callback(file)
+}
+
+func (m *Message) SaveTmpImage(content io.ReadCloser) (*os.File, error) {
+	file, err := os.Create("tmp-image")
+	if err != nil {
+		return nil, err
+	}
+	fmt.Print()
+	defer file.Close()
+
+	_, err = io.Copy(file, content)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+func checkMessage(text string) string {
+	switch text {
+	default:
+		return "すまん、今寝とる。"
+	}
 }
