@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -106,7 +105,7 @@ func (m *Message) SaveTmpImage(content io.ReadCloser) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Print()
+
 	defer file.Close()
 
 	_, err = io.Copy(file, content)
