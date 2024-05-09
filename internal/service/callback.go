@@ -12,27 +12,42 @@ import (
 type CallbackService struct {
 	Drive   interfaces.DriveInterface
 	Message interfaces.MessageInterface
+	Sheet   interfaces.SheetInterface
 }
 
 func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
-	parsedMessages, err := c.Message.ParseRequest(w, req)
+	ctx := req.Context()
+
+	sheetForDrive, err := c.Sheet.CreateSheet(ctx)
 
 	if err != nil {
-		return
+		fmt.Printf("%v", err)
 	}
 
-	for _, parsedMessage := range parsedMessages {
-		switch parsedMessage.MessageType {
-		case types.MESSAGE_TYPE_TEXT:
-			c.handleImageContent(parsedMessage)
-		case types.MESSAGE_TYPE_OTHERS:
-			c.handleTextContent(parsedMessage)
-		case types.MESSAGE_TYPE_IMAGE:
-			c.handleImageContent(parsedMessage)
-		default:
-			return
-		}
+	c.Drive.Upload("10KFLeu8bbmUfVUhDv0UjqL6XtEgWFG1N", sheetForDrive)
+
+	if err != nil {
+		fmt.Printf("%v", err)
 	}
+
+	// parsedMessages, err := c.Message.ParseRequest(w, req)
+
+	// if err != nil {
+	// 	return
+	// }
+
+	// for _, parsedMessage := range parsedMessages {
+	// 	switch parsedMessage.MessageType {
+	// 	case types.MESSAGE_TYPE_TEXT:
+	// 		c.handleImageContent(parsedMessage)
+	// 	case types.MESSAGE_TYPE_OTHERS:
+	// 		c.handleTextContent(parsedMessage)
+	// 	case types.MESSAGE_TYPE_IMAGE:
+	// 		c.handleImageContent(parsedMessage)
+	// 	default:
+	// 		return
+	// 	}
+	// }
 }
 
 func (c *CallbackService) handleTextContent(parsedMessage *types.ParsedMessage) {

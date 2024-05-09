@@ -1,8 +1,10 @@
 package pkg
 
 import (
-	"os"
+	"bytes"
+	"fmt"
 
+	"github.com/Kdaito/accountant-line-bot/internal/types"
 	"google.golang.org/api/drive/v2"
 )
 
@@ -10,15 +12,16 @@ type GDrive struct {
 	Service *drive.Service
 }
 
-func (g *GDrive) Upload(parentId string, title string, file *os.File) (string, error) {
+func (g *GDrive) Upload(parentId string, sheetForDrive *types.SheetForDrive) (string, error) {
 	f := &drive.File{
-		Title:   title,
-		Parents: []*drive.ParentReference{{Id: parentId}},
+		Title:    sheetForDrive.Title,
+		Parents:  []*drive.ParentReference{{Id: parentId}},
+		MimeType: "application/vnd.google-apps.spreadsheet",
 	}
 
-	r, err := g.Service.Files.Insert(f).Media(file).Do()
+	r, err := g.Service.Files.Insert(f).Media(bytes.NewReader(sheetForDrive.ByteFile)).Do()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Unable to upload sheet to Drive: %v", err)
 	}
 
 	return r.Id, nil

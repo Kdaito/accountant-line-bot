@@ -1,7 +1,7 @@
 package interfaces
 
-import "os"
+import "github.com/Kdaito/accountant-line-bot/internal/types"
 
 type DriveInterface interface {
-	Upload(parentId string, title string, file *os.File) (string, error)
+	Upload(parentId string, sheetForDrive *types.SheetForDrive) (string, error)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"google.golang.org/api/drive/v2"
 	"google.golang.org/api/option"
+	"google.golang.org/api/sheets/v4"
 )
 
 type Router struct {
@@ -44,19 +45,25 @@ func (r *Router) Set(channelSecret string, channelToken string) {
 	}
 
 	driveService, err := drive.NewService(ctx, option.WithCredentialsJSON(b))
-
 	if err != nil {
-		log.Fatalf("cannot create client from service account: %v", err)
+		log.Fatalf("cannot init drive service with credentials json: %v", err)
+	}
+
+	sheetService, err := sheets.NewService(ctx, option.WithCredentialsJSON(b))
+	if err != nil {
+		log.Fatalf("cannot init sheet service with credentials json: %v", err)
 	}
 
 	// google sheet api setting
 
 	// DI
 	drive := &pkg.GDrive{Service: driveService}
+	sheet := pkg.NewSheet(sheetService)
 	message := &pkg.Message{ChannelSecret: channelSecret, Bot: bot, Blob: blob}
 
 	callbackService := &service.CallbackService{
 		Drive:   drive,
+		Sheet:   sheet,
 		Message: message,
 	}
 

@@ -35,7 +35,7 @@ func (c *ChatAI) ScanReceipt(file *os.File) {
 	// 画像を追加
 	contents = append(contents, &types.ChatAiRequestContent{
 		Type: "image_url",
-		ImageURL: &types.ImageURL {
+		ImageURL: &types.ImageURL{
 			URL: fmt.Sprintf("data:image/jpeg;base64,%s", base64Image),
 		},
 	})
@@ -58,7 +58,7 @@ func (c *ChatAI) ScanReceipt(file *os.File) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer " + c.apiKey)
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 
 	client := &http.Client{}
 
@@ -69,7 +69,6 @@ func (c *ChatAI) ScanReceipt(file *os.File) {
 	}
 
 	defer response.Body.Close()
-
 
 	fmt.Print(response)
 }
