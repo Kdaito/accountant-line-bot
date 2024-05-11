@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -39,11 +38,10 @@ func (s *Sheet) CreateSheet(ctx context.Context) (*types.SheetForDrive, error) {
 	spreadSheetFileId := newSpreadsheet.SpreadsheetId
 
 	fmt.Printf("Spreadsheet created: %s (%s)\n", newSpreadsheet.Properties.Title, spreadSheetFileId)
-	byteFile, err := json.Marshal(newSpreadsheet)
 
 	if err != nil {
 		return nil, fmt.Errorf("Unable to marshal spreadsheet data: %v", err)
 	}
 
-	return &types.SheetForDrive{Title: newSpreadsheet.Properties.Title, ByteFile: byteFile}, nil
+	return &types.SheetForDrive{Title: newSpreadsheet.Properties.Title, FileId: spreadSheetFileId}, nil
 }

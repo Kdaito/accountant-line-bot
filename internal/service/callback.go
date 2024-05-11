@@ -24,7 +24,8 @@ func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
 		fmt.Printf("%v", err)
 	}
 
-	c.Drive.Upload("10KFLeu8bbmUfVUhDv0UjqL6XtEgWFG1N", sheetForDrive)
+	targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
+	c.Drive.Move(targetFolderId, sheetForDrive)
 
 	if err != nil {
 		fmt.Printf("%v", err)

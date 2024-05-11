@@ -49,22 +49,21 @@ func (r *Router) Set(channelSecret string, channelToken string) {
 		log.Fatalf("cannot init drive service with credentials json: %v", err)
 	}
 
+	// google sheet api setting
 	sheetService, err := sheets.NewService(ctx, option.WithCredentialsJSON(b))
 	if err != nil {
 		log.Fatalf("cannot init sheet service with credentials json: %v", err)
 	}
 
-	// google sheet api setting
-
 	// DI
-	drive := &pkg.GDrive{Service: driveService}
-	sheet := pkg.NewSheet(sheetService)
-	message := &pkg.Message{ChannelSecret: channelSecret, Bot: bot, Blob: blob}
+	drivePkg := pkg.NewDrive(driveService)
+	sheetPkg := pkg.NewSheet(sheetService)
+	messagePkg := &pkg.Message{ChannelSecret: channelSecret, Bot: bot, Blob: blob}
 
 	callbackService := &service.CallbackService{
-		Drive:   drive,
-		Sheet:   sheet,
-		Message: message,
+		Drive:   drivePkg,
+		Sheet:   sheetPkg,
+		Message: messagePkg,
 	}
 
 	// set routing
