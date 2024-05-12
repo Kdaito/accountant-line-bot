@@ -1,11 +1,13 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 
 	"github.com/Kdaito/accountant-line-bot/internal/interfaces"
+	"github.com/Kdaito/accountant-line-bot/internal/lib/app_error"
 	"github.com/Kdaito/accountant-line-bot/internal/types"
 )
 
@@ -16,24 +18,25 @@ type CallbackService struct {
 }
 
 func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
+	// ctx := req.Context()
 
-	sheetForDrive, err := c.Sheet.CreateSheet(ctx)
+	// sheetForDrive, err := c.Sheet.CreateSheet(ctx)
 
-	if err != nil {
-		fmt.Printf("%v", err)
-	}
+	// if err != nil {
+	// 	fmt.Printf("%v", err)
+	// }
 
-	targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
-	c.Drive.Move(targetFolderId, sheetForDrive)
+	// targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
+	// c.Drive.Move(targetFolderId, sheetForDrive)
 
-	if err != nil {
-		fmt.Printf("%v", err)
-	}
+	// if err != nil {
+	// 	fmt.Printf("%v", err)
+	// }
 
 	// parsedMessages, err := c.Message.ParseRequest(w, req)
 
 	// if err != nil {
+	// 	c.setErrorResponse(err, w)
 	// 	return
 	// }
 
@@ -60,4 +63,15 @@ func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage)
 		fmt.Println(file.Name())
 		return nil
 	})
+}
+
+func (c *CallbackService) setErrorResponse(err error, w http.ResponseWriter) {
+	var AppErrorType *app_error.AppError
+	if errors.As(err, &AppErrorType) {
+		w.WriteHeader(err.(*app_error.AppError).Code)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.Write([]byte(err.Error()))
+	return
 }

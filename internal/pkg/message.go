@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/Kdaito/accountant-line-bot/internal/lib/app_error"
 	"github.com/Kdaito/accountant-line-bot/internal/types"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
@@ -23,13 +24,10 @@ func (m *Message) ParseRequest(w http.ResponseWriter, req *http.Request) ([]*typ
 
 	cb, err := webhook.ParseRequest(m.ChannelSecret, req)
 	if err != nil {
-		log.Printf("Cannot parse request: %+v\n", err)
 		if errors.Is(err, webhook.ErrInvalidSignature) {
-			w.WriteHeader(400)
-		} else {
-			w.WriteHeader(500)
+			return nil, app_error.NewAppError(http.StatusBadRequest, "Cannnot parse request. Invalid signature.", err)
 		}
-		return res, err
+		return nil, app_error.NewAppError(http.StatusInternalServerError, "Cannnot parse request.", err)
 	}
 
 	for _, event := range cb.Events {
@@ -77,14 +75,18 @@ func (m *Message) ReplyMessage(message *types.ParsedMessage) error {
 		},
 	})
 
-	return err
+	if err != nil {
+		return app_error.NewAppError(http.StatusInternalServerError, "Cannnot reply message.", err)
+	}
+
+	return nil
 }
 
 func (m *Message) HandleImageContent(messageId string, callback func(*os.File) error) error {
 	content, err := m.Blob.GetMessageContent(messageId)
 
 	if err != nil {
-		return err
+		return app_error.NewAppError(http.StatusInternalServerError, "Cannot get image content of message.", err)
 	}
 
 	defer content.Body.Close()
@@ -92,12 +94,18 @@ func (m *Message) HandleImageContent(messageId string, callback func(*os.File) e
 	file, err := m.SaveTmpImage(content.Body)
 
 	if err != nil {
-		return err
+		return app_error.NewAppError(http.StatusInternalServerError, "Cannot save temporary image.", err)
 	}
 
 	defer os.Remove(file.Name())
 
-	return callback(file)
+	err = callback(file)
+
+	if err != nil {
+		return app_error.NewAppError(http.StatusInternalServerError, "Unexpected error occured.", err)
+	}
+
+	return nil
 }
 
 func (m *Message) SaveTmpImage(content io.ReadCloser) (*os.File, error) {
