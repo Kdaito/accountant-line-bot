@@ -18,20 +18,27 @@ type CallbackService struct {
 }
 
 func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
-	// ctx := req.Context()
+	ctx := req.Context()
 
-	// sheetForDrive, err := c.Sheet.CreateSheet(ctx)
+	sheetForDrive, err := c.Sheet.CreateSheet(ctx)
 
-	// if err != nil {
-	// 	fmt.Printf("%v", err)
-	// }
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
 
-	// targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
-	// c.Drive.Move(targetFolderId, sheetForDrive)
+	err = c.Sheet.WriteSheet(sheetForDrive.FileId)
 
-	// if err != nil {
-	// 	fmt.Printf("%v", err)
-	// }
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+
+
+	targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
+	c.Drive.Move(targetFolderId, sheetForDrive)
+
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
 
 	// parsedMessages, err := c.Message.ParseRequest(w, req)
 
