@@ -23,21 +23,24 @@ func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
 	sheetForDrive, err := c.Sheet.CreateSheet(ctx)
 
 	if err != nil {
-		fmt.Printf("%v", err)
+		c.setErrorResponse(err, w)
+		return
 	}
 
 	err = c.Sheet.WriteSheet(sheetForDrive.FileId)
 
 	if err != nil {
-		fmt.Printf("%v", err)
+		c.setErrorResponse(err, w)
+		return
 	}
 
-
 	targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
-	c.Drive.Move(targetFolderId, sheetForDrive)
+
+	_, err = c.Drive.Move(targetFolderId, sheetForDrive)
 
 	if err != nil {
-		fmt.Printf("%v", err)
+		c.setErrorResponse(err, w)
+		return
 	}
 
 	// parsedMessages, err := c.Message.ParseRequest(w, req)
@@ -74,11 +77,14 @@ func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage)
 
 func (c *CallbackService) setErrorResponse(err error, w http.ResponseWriter) {
 	var AppErrorType *app_error.AppError
+
 	if errors.As(err, &AppErrorType) {
 		w.WriteHeader(err.(*app_error.AppError).Code)
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+
 	w.Write([]byte(err.Error()))
+
 	return
 }
