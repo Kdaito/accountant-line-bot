@@ -1,7 +1,10 @@
 package pkg
 
 import (
+	"bytes"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -9,14 +12,15 @@ import (
 
 	"github.com/Kdaito/accountant-line-bot/internal/lib/app_error"
 	"github.com/Kdaito/accountant-line-bot/internal/types"
+	"github.com/line/line-bot-sdk-go/v8/linebot"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
 )
 
 type Message struct {
 	ChannelSecret string
-	Bot           *messaging_api.MessagingApiAPI
-	Blob          *messaging_api.MessagingApiBlobAPI
+	ClientBot     *linebot.Client
+	MessagingBot  *messaging_api.MessagingApiAPI
 }
 
 func (m *Message) ParseRequest(w http.ResponseWriter, req *http.Request) ([]*types.ParsedMessage, error) {
@@ -66,7 +70,7 @@ func (m *Message) ParseRequest(w http.ResponseWriter, req *http.Request) ([]*typ
 }
 
 func (m *Message) ReplyMessage(message *types.ParsedMessage) error {
-	_, err := m.Bot.ReplyMessage(&messaging_api.ReplyMessageRequest{
+	_, err := m.MessagingBot.ReplyMessage(&messaging_api.ReplyMessageRequest{
 		ReplyToken: message.ReplyToken,
 		Messages: []messaging_api.MessageInterface{
 			messaging_api.TextMessage{
@@ -82,24 +86,24 @@ func (m *Message) ReplyMessage(message *types.ParsedMessage) error {
 	return nil
 }
 
-func (m *Message) HandleImageContent(messageId string, callback func(*os.File) error) error {
-	content, err := m.Blob.GetMessageContent(messageId)
+func (m *Message) HandleImageContent(messageId string, callback func(string) error) error {
+	// lineのメッセージから画像を取得する
+	content, err := m.ClientBot.GetMessageContent(messageId).Do()
 
 	if err != nil {
 		return app_error.NewAppError(http.StatusInternalServerError, "Cannot get image content of message.", err)
 	}
 
-	defer content.Body.Close()
+	defer content.Content.Close()
 
-	file, err := m.SaveTmpImage(content.Body)
+	// 取得した画像をbase64エンコードする
+	encodedImage, err := m.encodeImage(content.Content)
 
 	if err != nil {
-		return app_error.NewAppError(http.StatusInternalServerError, "Cannot save temporary image.", err)
+		return app_error.NewAppError(http.StatusInternalServerError, "Cannot encode image.", err)
 	}
 
-	defer os.Remove(file.Name())
-
-	err = callback(file)
+	err = callback(encodedImage)
 
 	if err != nil {
 		return app_error.NewAppError(http.StatusInternalServerError, "Unexpected error occured.", err)
@@ -108,19 +112,40 @@ func (m *Message) HandleImageContent(messageId string, callback func(*os.File) e
 	return nil
 }
 
-func (m *Message) SaveTmpImage(content io.ReadCloser) (*os.File, error) {
-	file, err := os.Create("tmp-image")
+func (m *Message) encodeImage(content io.ReadCloser) (string, error) {
+	// 一時保存用のファイルを作成する
+	file, err := os.Create("tmp-image.jpg")
+
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("Failed create tmp image file: %s", err)
 	}
 
-	defer file.Close()
+	// エンコードが終了したら、ファイルをクローズして削除する
+	defer func() {
+		file.Close()
+		os.Remove(file.Name())
+	}()
 
-	_, err = io.Copy(file, content)
+	buf := new(bytes.Buffer)
+
+	size, err := io.Copy(buf, content)
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("Error reading content: %s", err)
 	}
-	return file, nil
+
+	if size == 0 {
+		return "", fmt.Errorf("No content retrieved, possible incorrect message ID or empty file.")
+	}
+
+	_, err = io.Copy(file, bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		return "", fmt.Errorf("Error saving content to file: %v", err)
+	}
+
+	// Base64エンコード
+	encodeResult := base64.StdEncoding.EncodeToString(buf.Bytes())
+
+	return encodeResult, nil
 }
 
 func checkMessage(text string) string {

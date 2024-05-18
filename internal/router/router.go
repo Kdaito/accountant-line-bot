@@ -9,6 +9,7 @@ import (
 
 	"github.com/Kdaito/accountant-line-bot/internal/pkg"
 	"github.com/Kdaito/accountant-line-bot/internal/service"
+	"github.com/line/line-bot-sdk-go/v8/linebot"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"google.golang.org/api/drive/v2"
 	"google.golang.org/api/option"
@@ -19,7 +20,7 @@ type Router struct {
 	Port string
 }
 
-func (r *Router) Set(channelSecret string, channelToken string) {
+func (r *Router) Set(channelSecret, channelToken, gptApiUrl, gptApiKey string) {
 	// port setting
 	if r.Port == "" {
 		r.Port = "2001"
@@ -27,13 +28,13 @@ func (r *Router) Set(channelSecret string, channelToken string) {
 
 	ctx := context.Background()
 
+	clientBot, err := linebot.New(channelSecret, channelToken)
+
 	// messaging api setting
-	bot, err := messaging_api.NewMessagingApiAPI(
+	messagingBot, err := messaging_api.NewMessagingApiAPI(
 		channelToken,
 	)
-	blob, err := messaging_api.NewMessagingApiBlobAPI(
-		channelToken,
-	)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,12 +59,14 @@ func (r *Router) Set(channelSecret string, channelToken string) {
 	// DI
 	drivePkg := pkg.NewDrive(driveService)
 	sheetPkg := pkg.NewSheet(sheetService)
-	messagePkg := &pkg.Message{ChannelSecret: channelSecret, Bot: bot, Blob: blob}
+	chatAIPkg := pkg.NewChatAI(gptApiUrl, gptApiKey)
+	messagePkg := &pkg.Message{ChannelSecret: channelSecret, ClientBot: clientBot, MessagingBot: messagingBot}
 
 	callbackService := &service.CallbackService{
 		Drive:   drivePkg,
 		Sheet:   sheetPkg,
 		Message: messagePkg,
+		ChatAI:  chatAIPkg,
 	}
 
 	// set routing

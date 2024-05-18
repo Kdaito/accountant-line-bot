@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/Kdaito/accountant-line-bot/internal/interfaces"
 	"github.com/Kdaito/accountant-line-bot/internal/lib/app_error"
@@ -15,68 +14,86 @@ type CallbackService struct {
 	Drive   interfaces.DriveInterface
 	Message interfaces.MessageInterface
 	Sheet   interfaces.SheetInterface
+	ChatAI  interfaces.ChatAIInterface
 }
 
 func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
+	// ctx := req.Context()
 
-	sheetForDrive, err := c.Sheet.CreateSheet(ctx)
-
-	if err != nil {
-		c.setErrorResponse(err, w)
-		return
-	}
-
-	err = c.Sheet.WriteSheet(sheetForDrive.FileId)
-
-	if err != nil {
-		c.setErrorResponse(err, w)
-		return
-	}
-
-	targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
-
-	_, err = c.Drive.Move(targetFolderId, sheetForDrive)
-
-	if err != nil {
-		c.setErrorResponse(err, w)
-		return
-	}
-
-	// parsedMessages, err := c.Message.ParseRequest(w, req)
+	// sheetForDrive, err := c.Sheet.CreateSheet(ctx)
 
 	// if err != nil {
 	// 	c.setErrorResponse(err, w)
 	// 	return
 	// }
 
-	// for _, parsedMessage := range parsedMessages {
-	// 	switch parsedMessage.MessageType {
-	// 	case types.MESSAGE_TYPE_TEXT:
-	// 		c.handleImageContent(parsedMessage)
-	// 	case types.MESSAGE_TYPE_OTHERS:
-	// 		c.handleTextContent(parsedMessage)
-	// 	case types.MESSAGE_TYPE_IMAGE:
-	// 		c.handleImageContent(parsedMessage)
-	// 	default:
-	// 		return
-	// 	}
+	// err = c.Sheet.WriteSheet(sheetForDrive.FileId)
+
+	// if err != nil {
+	// 	c.setErrorResponse(err, w)
+	// 	return
 	// }
+
+	// targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
+
+	// _, err = c.Drive.Move(targetFolderId, sheetForDrive)
+
+	// if err != nil {
+	// 	c.setErrorResponse(err, w)
+	// 	return
+	// }
+
+	parsedMessages, err := c.Message.ParseRequest(w, req)
+
+	if err != nil {
+		c.setErrorResponse(err, w)
+		return
+	}
+
+	for _, parsedMessage := range parsedMessages {
+		switch parsedMessage.MessageType {
+		case types.MESSAGE_TYPE_TEXT:
+			c.handleTextContent(parsedMessage)
+			return
+		case types.MESSAGE_TYPE_OTHERS:
+			c.handleTextContent(parsedMessage)
+			return
+		case types.MESSAGE_TYPE_IMAGE:
+			err = c.handleImageContent(parsedMessage)
+			if err != nil {
+				c.setErrorResponse(err, w)
+			}
+			return
+		default:
+			return
+		}
+	}
 }
 
 func (c *CallbackService) handleTextContent(parsedMessage *types.ParsedMessage) {
 	c.Message.ReplyMessage(parsedMessage)
+	return
 }
 
-func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage) {
-	c.Message.HandleImageContent(parsedMessage.ID, func(file *os.File) error {
-		fmt.Println(file.Name())
+func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage) error {
+	return c.Message.HandleImageContent(parsedMessage.ID, func(encodedImage string) error {
+		fmt.Println("Scanを開始します")
+		err := c.ChatAI.ScanReceipt(encodedImage)
+
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("Scanが終了しました")
 		return nil
 	})
 }
 
 func (c *CallbackService) setErrorResponse(err error, w http.ResponseWriter) {
 	var AppErrorType *app_error.AppError
+
+	// エラーログをコンソールに出力するため
+	fmt.Print(err)
 
 	if errors.As(err, &AppErrorType) {
 		w.WriteHeader(err.(*app_error.AppError).Code)

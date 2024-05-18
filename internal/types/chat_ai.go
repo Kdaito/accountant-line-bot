@@ -1,9 +1,8 @@
 package types
 
 type ChatAIRequest struct {
-	Model     string                  `json:"model"`
-	Messages  []*ChatAIRequestMessage `json:"messages"`
-	MaxTokens int                     `json:"max_tokens"`
+	Model    string                  `json:"model"`
+	Messages []*ChatAIRequestMessage `json:"messages"`
 }
 
 type ChatAIRequestMessage struct {
