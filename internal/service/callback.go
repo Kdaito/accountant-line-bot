@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/Kdaito/accountant-line-bot/internal/interfaces"
 	"github.com/Kdaito/accountant-line-bot/internal/lib/app_error"
@@ -18,30 +20,7 @@ type CallbackService struct {
 }
 
 func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
-	// ctx := req.Context()
-
-	// sheetForDrive, err := c.Sheet.CreateSheet(ctx)
-
-	// if err != nil {
-	// 	c.setErrorResponse(err, w)
-	// 	return
-	// }
-
-	// err = c.Sheet.WriteSheet(sheetForDrive.FileId)
-
-	// if err != nil {
-	// 	c.setErrorResponse(err, w)
-	// 	return
-	// }
-
-	// targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
-
-	// _, err = c.Drive.Move(targetFolderId, sheetForDrive)
-
-	// if err != nil {
-	// 	c.setErrorResponse(err, w)
-	// 	return
-	// }
+	ctx := req.Context()
 
 	parsedMessages, err := c.Message.ParseRequest(w, req)
 
@@ -59,7 +38,7 @@ func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
 			c.handleTextContent(parsedMessage)
 			return
 		case types.MESSAGE_TYPE_IMAGE:
-			err = c.handleImageContent(parsedMessage)
+			err = c.handleImageContent(parsedMessage, ctx)
 			if err != nil {
 				c.setErrorResponse(err, w)
 			}
@@ -71,24 +50,41 @@ func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
 }
 
 func (c *CallbackService) handleTextContent(parsedMessage *types.ParsedMessage) {
-	res, _ := c.ChatAI.ScanReceipt("")
-	fmt.Printf("result struct: %#v\n", res)
+	// res, _ := c.ChatAI.ScanReceipt("")
+	// fmt.Printf("result struct: %#v\n", res)
 	// c.Message.ReplyMessage(parsedMessage)
 	return
 }
 
-func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage) error {
+func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage, ctx context.Context) error {
 	return c.Message.HandleImageContent(parsedMessage.ID, func(encodedImage string) error {
-		fmt.Println("Scanを開始します")
-		res, err := c.ChatAI.ScanReceipt(encodedImage)
 
-		fmt.Printf("result struct: %#v\n", res)
+		receipt, err := c.ChatAI.ScanReceipt(encodedImage)
 
 		if err != nil {
 			return err
 		}
 
-		fmt.Println("Scanが終了しました")
+		sheetForDrive, err := c.Sheet.CreateSheet(ctx)
+
+		if err != nil {
+			return err
+		}
+
+		err = c.Sheet.WriteSheet(sheetForDrive.FileId, sheetForDrive.SheetId, receipt)
+
+		if err != nil {
+			return err
+		}
+
+		targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
+
+		_, err = c.Drive.Move(targetFolderId, sheetForDrive)
+
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 }

@@ -3,6 +3,7 @@ package pkg
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/Kdaito/accountant-line-bot/internal/lib/app_error"
@@ -30,30 +31,82 @@ func (s *Sheet) CreateSheet(ctx context.Context) (*types.SheetForDrive, error) {
 			Locale:   "ja_JP",
 			TimeZone: "Asia/Tokyo",
 		},
-	}).Context(ctx).Do()
+	}).Do()
 
-	if err != nil {
+	if err != nil || len(newSpreadsheet.Sheets) < 1 {
 		return nil, app_error.NewAppError(http.StatusInternalServerError, "Unable to create sheet", err)
 	}
 
-	spreadSheetFileId := newSpreadsheet.SpreadsheetId
+	fileId := newSpreadsheet.SpreadsheetId
+
+	sheetId := newSpreadsheet.Sheets[0].Properties.SheetId
 
 	if err != nil {
 		return nil, app_error.NewAppError(http.StatusInternalServerError, "Unable to marshal spreadsheet data.", err)
 	}
 
-	return &types.SheetForDrive{Title: newSpreadsheet.Properties.Title, FileId: spreadSheetFileId}, nil
+	return &types.SheetForDrive{Title: newSpreadsheet.Properties.Title, FileId: fileId, SheetId: sheetId}, nil
 }
 
-func (s *Sheet) WriteSheet(fileId string) error {
+func (s *Sheet) WriteSheet(fileId string, sheetId int64, receipt *types.Receipt) error {
 	var vr sheets.ValueRange
-	vr.Values = append(vr.Values, []interface{}{"Name", "Age", "Department"})
-	for _, emp := range getSampleEmployee() {
-		row := []interface{}{emp.Name, emp.Age, emp.Department}
+
+	// 構造体にフィールドが設定されている場合は、シートに反映する
+	receptReflect := reflect.TypeOf(*receipt)
+
+	// 日付
+	if _, bol := receptReflect.FieldByName("Date"); bol {
+		row := []interface{}{"date", "", receipt.Date}
 		vr.Values = append(vr.Values, row)
 	}
 
-	writeRange := "A1"
+	// 商品リスト
+	itemRowItem := []interface{}{"name", "count", "amount"}
+	vr.Values = append(vr.Values, itemRowItem)
+
+	for _, item := range receipt.Items {
+		var name, count, amount string
+
+		itemReflect := reflect.TypeOf(item)
+		if _, bol := itemReflect.FieldByName("Name"); bol {
+			name = item.Name
+		} else {
+			name = ""
+		}
+		if _, bol := itemReflect.FieldByName("Amount"); bol {
+			count = string(item.Count)
+		} else {
+			count = ""
+		}
+		if _, bol := itemReflect.FieldByName("Count"); bol {
+			amount = string(item.Amount)
+		} else {
+			amount = ""
+		}
+
+		itemRow := []interface{}{name, count, amount}
+		vr.Values = append(vr.Values, itemRow)
+	}
+
+	// 税抜価格
+	if _, bol := receptReflect.FieldByName("TotalAmount"); bol {
+		row := []interface{}{"total amount", "", receipt.TotalAmount}
+		vr.Values = append(vr.Values, row)
+	}
+
+	// 税込価格
+	if _, bol := receptReflect.FieldByName("TotalAmountIncludingTax"); bol {
+		row := []interface{}{"total amount (including tax)", "", receipt.TotalAmountIncludingTax}
+		vr.Values = append(vr.Values, row)
+	}
+
+	// 通貨
+	if _, bol := receptReflect.FieldByName("CurrencySymbol"); bol {
+		row := []interface{}{"currency symbol", "", receipt.CurrencySymbol}
+		vr.Values = append(vr.Values, row)
+	}
+
+	writeRange := "B2"
 
 	_, err := s.service.Spreadsheets.Values.Update(fileId, writeRange, &vr).ValueInputOption("RAW").Do()
 
@@ -61,17 +114,178 @@ func (s *Sheet) WriteSheet(fileId string) error {
 		return app_error.NewAppError(http.StatusInternalServerError, "Cannot wirte spread sheet values.", err)
 	}
 
+	const LEN_TO_ITEM_TABLE = 3
+	itemLength := len(receipt.Items)
+
+	// スプレッドシートのスタイリング
+	// セルの結合リクエスト
+	margeDateCellsRequest := &sheets.Request{
+		MergeCells: &sheets.MergeCellsRequest{
+			Range: &sheets.GridRange{
+				SheetId:          sheetId,
+				StartRowIndex:    1,
+				EndRowIndex:      2,
+				StartColumnIndex: 1,
+				EndColumnIndex:   3,
+			},
+			MergeType: "MERGE_ALL",
+		},
+	}
+	margeTotalAmountCellsRequest := &sheets.Request{
+		MergeCells: &sheets.MergeCellsRequest{
+			Range: &sheets.GridRange{
+				SheetId:          sheetId,
+				StartRowIndex:    int64(LEN_TO_ITEM_TABLE + itemLength),
+				EndRowIndex:      int64(LEN_TO_ITEM_TABLE + itemLength + 1),
+				StartColumnIndex: 1,
+				EndColumnIndex:   3,
+			},
+			MergeType: "MERGE_ALL",
+		},
+	}
+	margeTotalAmountIncludingTaxCellsRequest := &sheets.Request{
+		MergeCells: &sheets.MergeCellsRequest{
+			Range: &sheets.GridRange{
+				SheetId:          sheetId,
+				StartRowIndex:    int64(LEN_TO_ITEM_TABLE + itemLength + 1),
+				EndRowIndex:      int64(LEN_TO_ITEM_TABLE + itemLength + 2),
+				StartColumnIndex: 1,
+				EndColumnIndex:   3,
+			},
+			MergeType: "MERGE_ALL",
+		},
+	}
+	margeCurrencySymbolCellsRequest := &sheets.Request{
+		MergeCells: &sheets.MergeCellsRequest{
+			Range: &sheets.GridRange{
+				SheetId:          sheetId,
+				StartRowIndex:    int64(LEN_TO_ITEM_TABLE + itemLength + 2),
+				EndRowIndex:      int64(LEN_TO_ITEM_TABLE + itemLength + 3),
+				StartColumnIndex: 1,
+				EndColumnIndex:   3,
+			},
+			MergeType: "MERGE_ALL",
+		},
+	}
+
+	// 背景色の設定リクエスト
+	updateCellsRequest := &sheets.Request{
+		UpdateCells: &sheets.UpdateCellsRequest{
+			Range: &sheets.GridRange{
+				SheetId:          sheetId,
+				StartRowIndex:    2,
+				EndRowIndex:      3,
+				StartColumnIndex: 1,
+				EndColumnIndex:   4,
+			},
+			Fields: "userEnteredFormat.backgroundColor",
+			Rows: []*sheets.RowData{
+				{
+					Values: []*sheets.CellData{
+						{
+							UserEnteredFormat: &sheets.CellFormat{
+								BackgroundColor: &sheets.Color{
+									Red:   0.5,
+									Green: 0.8,
+									Blue:  1.0,
+								},
+							},
+						},
+						{
+							UserEnteredFormat: &sheets.CellFormat{
+								BackgroundColor: &sheets.Color{
+									Red:   0.5,
+									Green: 0.8,
+									Blue:  1.0,
+								},
+							},
+						},
+						{
+							UserEnteredFormat: &sheets.CellFormat{
+								BackgroundColor: &sheets.Color{
+									Red:   0.5,
+									Green: 0.8,
+									Blue:  1.0,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// 枠線の設定リクエスト
+	updateBordersRequest := &sheets.Request{
+		UpdateBorders: &sheets.UpdateBordersRequest{
+			Range: &sheets.GridRange{
+				SheetId:          sheetId,
+				StartRowIndex:    1,
+				EndRowIndex:      int64(LEN_TO_ITEM_TABLE + itemLength + 3),
+				StartColumnIndex: 1,
+				EndColumnIndex:   4,
+			},
+			Top: &sheets.Border{
+				Style: "SOLID",
+				Color: &sheets.Color{
+					Red:   0.0,
+					Green: 0.0,
+					Blue:  0.0,
+				},
+			},
+			Bottom: &sheets.Border{
+				Style: "SOLID",
+				Color: &sheets.Color{
+					Red:   0.0,
+					Green: 0.0,
+					Blue:  0.0,
+				},
+			},
+			Left: &sheets.Border{
+				Style: "SOLID",
+				Color: &sheets.Color{
+					Red:   0.0,
+					Green: 0.0,
+					Blue:  0.0,
+				},
+			},
+			Right: &sheets.Border{
+				Style: "SOLID",
+				Color: &sheets.Color{
+					Red:   0.0,
+					Green: 0.0,
+					Blue:  0.0,
+				},
+			},
+			InnerHorizontal: &sheets.Border{
+				Style: "SOLID",
+				Color: &sheets.Color{
+					Red:   0.0,
+					Green: 0.0,
+					Blue:  0.0,
+				},
+			},
+			InnerVertical: &sheets.Border{
+				Style: "SOLID",
+				Color: &sheets.Color{
+					Red:   0.0,
+					Green: 0.0,
+					Blue:  0.0,
+				},
+			},
+		},
+	}
+
+	// リクエストのバッチ実行
+	requests := []*sheets.Request{margeDateCellsRequest, margeTotalAmountCellsRequest, margeTotalAmountIncludingTaxCellsRequest, margeCurrencySymbolCellsRequest, updateCellsRequest, updateBordersRequest}
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	_, err = s.service.Spreadsheets.BatchUpdate(fileId, batchUpdate).Do()
+	if err != nil {
+		return app_error.NewAppError(http.StatusInternalServerError, "Cannot batch update spread sheet for styling", err)
+	}
+
 	return nil
-}
-
-// ============ for sample ============
-
-type Employee struct {
-	Name       string `json:"Name"`
-	Age        int    `json:"Age"`
-	Department string `json:"Department"`
-}
-
-func getSampleEmployee() []Employee {
-	return []Employee{{Name: "Hiroto", Age: 22, Department: "Development"}, {Name: "Hayato", Age: 21, Department: "Manager"}}
 }
