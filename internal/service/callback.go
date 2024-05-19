@@ -71,14 +71,18 @@ func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
 }
 
 func (c *CallbackService) handleTextContent(parsedMessage *types.ParsedMessage) {
-	c.Message.ReplyMessage(parsedMessage)
+	res, _ := c.ChatAI.ScanReceipt("")
+	fmt.Printf("result struct: %#v\n", res)
+	// c.Message.ReplyMessage(parsedMessage)
 	return
 }
 
 func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage) error {
 	return c.Message.HandleImageContent(parsedMessage.ID, func(encodedImage string) error {
 		fmt.Println("Scanを開始します")
-		err := c.ChatAI.ScanReceipt(encodedImage)
+		res, err := c.ChatAI.ScanReceipt(encodedImage)
+
+		fmt.Printf("result struct: %#v\n", res)
 
 		if err != nil {
 			return err
