@@ -1,12 +1,12 @@
 package pkg
 
 import (
-	// "bytes"
-	// "fmt"
-	// "io/ioutil"
-	// "regexp"
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
+	"regexp"
 
 	"github.com/Kdaito/accountant-line-bot/internal/lib/app_error"
 	"github.com/Kdaito/accountant-line-bot/internal/types"
@@ -23,10 +23,11 @@ func NewChatAI(apiUrl, apiKey string) *ChatAI {
 
 // Chat GPT APIに送るプロンプト
 const prompt = `
-Please analyze the receipt image I will send next and output the information in the following JSON format. Extract the date, total amount, and list of items from the receipt. Follow the descriptions of each item to extract the necessary information.
+Please analyze the receipt image I will send next and output the information in the following JSON format. Extract the date, total amount, and list of items from the receipt. Follow the descriptions of each item to obtain the necessary information.
 
 JSON format:
 {
+    "isReceipt": boolean,
     "date": "string",
     "totalAmount": number,
     "totalAmountIncludingTax": number,
@@ -41,6 +42,7 @@ JSON format:
 }
 
 Description of each item:
+- isReceipt: Whether the analyzed image is a receipt (true for a receipt, false for other images)
 - date: The date on the receipt (format: YYYY-MM-DD)
 - totalAmount: Total amount excluding tax (numeric only, without currency symbol)
 - totalAmountIncludingTax: Total amount including tax (numeric only, without currency symbol)
@@ -113,103 +115,69 @@ type ResponseMessage struct {
 }
 
 func (c *ChatAI) ScanReceipt(encodedImage string) (*types.Receipt, error) {
-	// var contents []ChatAiRequestContent
+	var contents []ChatAiRequestContent
 
-	// contents = append(contents, ChatAiRequestContent{
-	// 	Type: "text",
-	// 	Text: prompt,
-	// })
+	contents = append(contents, ChatAiRequestContent{
+		Type: "text",
+		Text: prompt,
+	})
 
-	// contents = append(contents, ChatAiRequestContent{
-	// 	Type: "image_url",
-	// 	ImageURL: ImageURL{
-	// 		URL: fmt.Sprintf("data:image/jpeg;base64,%s", encodedImage),
-	// 	},
-	// })
+	contents = append(contents, ChatAiRequestContent{
+		Type: "image_url",
+		ImageURL: ImageURL{
+			URL: fmt.Sprintf("data:image/jpeg;base64,%s", encodedImage),
+		},
+	})
 
-	// message := ChatMessage{
-	// 	Role:    "user",
-	// 	Content: contents,
-	// }
+	message := ChatMessage{
+		Role:    "user",
+		Content: contents,
+	}
 
-	// requestBody := ChatRequest{
-	// 	Model:    "gpt-4o", // 必要に応じてモデルを変更してください
-	// 	Messages: []ChatMessage{message},
-	// }
+	requestBody := ChatRequest{
+		Model:    "gpt-4o", // 必要に応じてモデルを変更してください
+		Messages: []ChatMessage{message},
+	}
 
-	// requestJSON, err := json.Marshal(requestBody)
+	requestJSON, err := json.Marshal(requestBody)
 
-	// if err != nil {
-	// 	return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed marshal request object for chat gpt api.", err)
-	// }
+	if err != nil {
+		return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed marshal request object for chat gpt api.", err)
+	}
 
-	// req, err := http.NewRequest("POST", c.apiUrl, bytes.NewBuffer(requestJSON))
-	// if err != nil {
-	// 	return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed create request to chat gpt api.", err)
-	// }
+	req, err := http.NewRequest("POST", c.apiUrl, bytes.NewBuffer(requestJSON))
+	if err != nil {
+		return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed create request to chat gpt api.", err)
+	}
 
-	// req.Header.Set("Content-Type", "application/json")
-	// req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	// client := &http.Client{}
+	client := &http.Client{}
 
-	// response, err := client.Do(req)
+	response, err := client.Do(req)
 
-	// if err != nil {
-	// 	return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed request to chat gpt api.", err)
-	// }
+	if err != nil {
+		return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed request to chat gpt api.", err)
+	}
 
-	// body, err := ioutil.ReadAll(response.Body)
+	body, err := ioutil.ReadAll(response.Body)
 
-	// var res GptResponse
-	// if err := json.Unmarshal(body, &res); err != nil {
-	// 	return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed unmarshal response of gpt api.", err)
-	// }
+	var res GptResponse
+	if err := json.Unmarshal(body, &res); err != nil {
+		return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed unmarshal response of gpt api.", err)
+	}
 
-	// defer response.Body.Close()
+	defer response.Body.Close()
 
-	// // gptのレスポンスからjsonのみを取り出す
-	// re := regexp.MustCompile("```json\\n((?s:.*?))\\n```")
-	// match := re.FindStringSubmatch(res.Choices[0].Message.Content)
-	// jsonData := match[1]
-
-	// // test
-	// fmt.Println(jsonData)
-
-	testJson := `
-	{
-    "date": "2024-04-12",
-    "totalAmount": 8.59,
-    "totalAmountIncludingTax": 9.36,
-    "currencySymbol": "EUR",
-    "items": [
-        {
-            "name": "CAMP YOGHURT",
-            "amount": 3.19,
-            "count": 1
-        },
-        {
-            "name": "DOOSJE FRUIT",
-            "amount": 2.59,
-            "count": 1
-        },
-        {
-            "name": "RIBBELCHIPS",
-            "amount": 1.39,
-            "count": 1
-        },
-        {
-            "name": "SCHARRELEI",
-            "amount": 2.19,
-            "count": 1
-        }
-    ]
-}
-`
+	// gptのレスポンスからjsonのみを取り出す
+	re := regexp.MustCompile("```json\\n((?s:.*?))\\n```")
+	match := re.FindStringSubmatch(res.Choices[0].Message.Content)
+	jsonData := match[1]
 
 	var result types.Receipt
 
-	if err := json.Unmarshal([]byte(testJson), &result); err != nil {
+	if err := json.Unmarshal([]byte(jsonData), &result); err != nil {
 		return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed unmarshal json of recipt data.", err)
 	}
 

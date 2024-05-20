@@ -3,6 +3,7 @@ package types
 import "encoding/json"
 
 type Receipt struct {
+	IsReceipt               bool        `json:"isReceipt"`
 	Date                    string      `json:"date,omitempty"`
 	TotalAmount             json.Number `json:"totalAmount,omitempty"`
 	TotalAmountIncludingTax json.Number `json:"totalAmountIncludingTax,omitempty"`

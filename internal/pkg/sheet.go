@@ -54,11 +54,14 @@ func (s *Sheet) WriteSheet(fileId string, sheetId int64, receipt *types.Receipt)
 	// 構造体にフィールドが設定されている場合は、シートに反映する
 	receptReflect := reflect.TypeOf(*receipt)
 
+	const UNDEFINED_VALUE = "undefined"
+
 	// 日付
+	date := UNDEFINED_VALUE
 	if _, bol := receptReflect.FieldByName("Date"); bol {
-		row := []interface{}{"date", "", receipt.Date}
-		vr.Values = append(vr.Values, row)
+		date = receipt.Date
 	}
+	vr.Values = append(vr.Values, []interface{}{"date", "", date})
 
 	// 商品リスト
 	itemRowItem := []interface{}{"name", "count", "amount"}
@@ -71,17 +74,17 @@ func (s *Sheet) WriteSheet(fileId string, sheetId int64, receipt *types.Receipt)
 		if _, bol := itemReflect.FieldByName("Name"); bol {
 			name = item.Name
 		} else {
-			name = ""
+			name = UNDEFINED_VALUE
 		}
 		if _, bol := itemReflect.FieldByName("Amount"); bol {
 			count = string(item.Count)
 		} else {
-			count = ""
+			count = UNDEFINED_VALUE
 		}
 		if _, bol := itemReflect.FieldByName("Count"); bol {
 			amount = string(item.Amount)
 		} else {
-			amount = ""
+			amount = UNDEFINED_VALUE
 		}
 
 		itemRow := []interface{}{name, count, amount}
@@ -89,22 +92,25 @@ func (s *Sheet) WriteSheet(fileId string, sheetId int64, receipt *types.Receipt)
 	}
 
 	// 税抜価格
+	totalAmount := UNDEFINED_VALUE
 	if _, bol := receptReflect.FieldByName("TotalAmount"); bol {
-		row := []interface{}{"total amount", "", receipt.TotalAmount}
-		vr.Values = append(vr.Values, row)
+		totalAmount = string(receipt.TotalAmount)
 	}
+	vr.Values = append(vr.Values, []interface{}{"total amount", "", totalAmount})
 
 	// 税込価格
+	totalAmountIncludingTax := UNDEFINED_VALUE
 	if _, bol := receptReflect.FieldByName("TotalAmountIncludingTax"); bol {
-		row := []interface{}{"total amount (including tax)", "", receipt.TotalAmountIncludingTax}
-		vr.Values = append(vr.Values, row)
+		totalAmountIncludingTax = string(receipt.TotalAmountIncludingTax)
 	}
+	vr.Values = append(vr.Values, []interface{}{"total amount (including tax)", "", totalAmountIncludingTax})
 
 	// 通貨
+	currencySymbol := UNDEFINED_VALUE
 	if _, bol := receptReflect.FieldByName("CurrencySymbol"); bol {
-		row := []interface{}{"currency symbol", "", receipt.CurrencySymbol}
-		vr.Values = append(vr.Values, row)
+		currencySymbol = receipt.CurrencySymbol
 	}
+	vr.Values = append(vr.Values, []interface{}{"currency symbol", "", currencySymbol})
 
 	writeRange := "B2"
 

@@ -31,17 +31,50 @@ func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
 
 	for _, parsedMessage := range parsedMessages {
 		switch parsedMessage.MessageType {
+		//
+		// 受け取ったメッセージがテキストだった場合の処理
+		//
 		case types.MESSAGE_TYPE_TEXT:
-			c.handleTextContent(parsedMessage)
-			return
-		case types.MESSAGE_TYPE_OTHERS:
-			c.handleTextContent(parsedMessage)
-			return
-		case types.MESSAGE_TYPE_IMAGE:
-			err = c.handleImageContent(parsedMessage, ctx)
+			err = c.handleTextContent(parsedMessage)
+
 			if err != nil {
 				c.setErrorResponse(err, w)
+				parsedMessage.Text = "なんか処理失敗したわ。もう一回送ってみてくれる？"
+				c.Message.ReplyMessage(parsedMessage)
+				return
 			}
+
+			c.setSuccessResponse(w)
+			return
+		//
+		// 受け取ったメッセージが画像だった場合の処理
+		//
+		case types.MESSAGE_TYPE_IMAGE:
+			err = c.handleImageContent(parsedMessage, ctx)
+
+			if err != nil {
+				c.setErrorResponse(err, w)
+				parsedMessage.Text = "なんか処理失敗したわ。もう一回送ってみてくれる？"
+				c.Message.ReplyMessage(parsedMessage)
+				return
+			}
+
+			c.setSuccessResponse(w)
+			return
+		//
+		// 受け取ったメッセージがテキストでも画像でもなかった場合の処理
+		//
+		case types.MESSAGE_TYPE_OTHERS:
+			err = c.handleTextContent(parsedMessage)
+
+			if err != nil {
+				c.setErrorResponse(err, w)
+				parsedMessage.Text = "なんか処理失敗したわ。もう一回送ってみてくれる？"
+				c.Message.ReplyMessage(parsedMessage)
+				return
+			}
+
+			c.setSuccessResponse(w)
 			return
 		default:
 			return
@@ -49,11 +82,12 @@ func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (c *CallbackService) handleTextContent(parsedMessage *types.ParsedMessage) {
-	// res, _ := c.ChatAI.ScanReceipt("")
-	// fmt.Printf("result struct: %#v\n", res)
-	// c.Message.ReplyMessage(parsedMessage)
-	return
+func (c *CallbackService) handleTextContent(parsedMessage *types.ParsedMessage) error {
+	parsedMessage.Text = "すまんな、私も忙しいんだ。さっさとレシートを送りたまえ。"
+	if err := c.Message.ReplyMessage(parsedMessage); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage, ctx context.Context) error {
@@ -63,6 +97,15 @@ func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage,
 
 		if err != nil {
 			return err
+		}
+
+		// 送られてきた画像がレシート画像でない場合はメッセージを送信して終了する
+		if !receipt.IsReceipt {
+			parsedMessage.Text = "この画像、レシートじゃないやろ。解析できんわ。"
+			if err = c.Message.ReplyMessage(parsedMessage); err != nil {
+				return err
+			}
+			return nil
 		}
 
 		sheetForDrive, err := c.Sheet.CreateSheet(ctx)
@@ -85,8 +128,18 @@ func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage,
 			return err
 		}
 
+		parsedMessage.Text = "解析終わったで。"
+		if err = c.Message.ReplyMessage(parsedMessage); err != nil {
+			return err
+		}
+
 		return nil
 	})
+}
+
+func (c *CallbackService) setSuccessResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Request successfully processed!"))
 }
 
 func (c *CallbackService) setErrorResponse(err error, w http.ResponseWriter) {
