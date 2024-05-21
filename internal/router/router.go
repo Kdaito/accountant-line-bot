@@ -69,9 +69,11 @@ func (r *Router) Set(channelSecret, channelToken, gptApiUrl, gptApiKey string) {
 		ChatAI:  chatAIPkg,
 	}
 
+	healthService := service.NewHealthService()
+
 	// set routing
 	http.HandleFunc("/callback", callbackService.Callback)
-
+	http.HandleFunc("/health-check", healthService.HealthCheck)
 }
 
 func (r *Router) Run() {
