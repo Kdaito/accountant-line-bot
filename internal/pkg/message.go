@@ -23,6 +23,18 @@ type Message struct {
 	MessagingBot  *messaging_api.MessagingApiAPI
 }
 
+func NewMessage(
+	channelSecret string,
+	clientBot *linebot.Client,
+	messagingBot *messaging_api.MessagingApiAPI,
+) *Message {
+	return &Message{
+		ChannelSecret: channelSecret,
+		ClientBot:     clientBot,
+		MessagingBot:  messagingBot,
+	}
+}
+
 func (m *Message) ParseRequest(w http.ResponseWriter, req *http.Request) ([]*types.ParsedMessage, error) {
 	res := []*types.ParsedMessage{}
 

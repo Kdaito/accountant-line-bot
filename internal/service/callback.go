@@ -19,6 +19,20 @@ type CallbackService struct {
 	ChatAI  interfaces.ChatAIInterface
 }
 
+func NewCallbackService(
+	drive interfaces.DriveInterface,
+	message interfaces.MessageInterface,
+	sheet interfaces.SheetInterface,
+	chatAI interfaces.ChatAIInterface,
+) *CallbackService {
+	return &CallbackService{
+		Drive:   drive,
+		Message: message,
+		Sheet:   sheet,
+		ChatAI:  chatAI,
+	}
+}
+
 func (c *CallbackService) Callback(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 

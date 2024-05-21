@@ -2,9 +2,9 @@ package service
 
 import "net/http"
 
-type HealthService struct {}
+type HealthService struct{}
 
-func NewHealthService() *HealthService{
+func NewHealthService() *HealthService {
 	return &HealthService{}
 }
 

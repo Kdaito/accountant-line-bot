@@ -60,15 +60,9 @@ func (r *Router) Set(channelSecret, channelToken, gptApiUrl, gptApiKey string) {
 	drivePkg := pkg.NewDrive(driveService)
 	sheetPkg := pkg.NewSheet(sheetService)
 	chatAIPkg := pkg.NewChatAI(gptApiUrl, gptApiKey)
-	messagePkg := &pkg.Message{ChannelSecret: channelSecret, ClientBot: clientBot, MessagingBot: messagingBot}
+	messagePkg := pkg.NewMessage(channelSecret, clientBot, messagingBot)
 
-	callbackService := &service.CallbackService{
-		Drive:   drivePkg,
-		Sheet:   sheetPkg,
-		Message: messagePkg,
-		ChatAI:  chatAIPkg,
-	}
-
+	callbackService := service.NewCallbackService(drivePkg, messagePkg, sheetPkg, chatAIPkg)
 	healthService := service.NewHealthService()
 
 	// set routing
