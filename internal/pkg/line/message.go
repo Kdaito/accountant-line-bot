@@ -1,4 +1,4 @@
-package pkg
+package line
 
 import (
 	"bytes"
@@ -24,9 +24,9 @@ type Message struct {
 }
 
 func NewMessage(
-	channelSecret string,
 	clientBot *linebot.Client,
 	messagingBot *messaging_api.MessagingApiAPI,
+	channelSecret string,
 ) *Message {
 	return &Message{
 		ChannelSecret: channelSecret,

@@ -3,24 +3,21 @@ package router
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 
-	"github.com/Kdaito/accountant-line-bot/internal/pkg"
+	"github.com/Kdaito/accountant-line-bot/internal/pkg/gcp"
+	"github.com/Kdaito/accountant-line-bot/internal/pkg/gpt"
+	"github.com/Kdaito/accountant-line-bot/internal/pkg/line"
+	"github.com/Kdaito/accountant-line-bot/internal/pkg/setup"
 	"github.com/Kdaito/accountant-line-bot/internal/service"
-	"github.com/line/line-bot-sdk-go/v8/linebot"
-	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
-	"google.golang.org/api/drive/v2"
-	"google.golang.org/api/option"
-	"google.golang.org/api/sheets/v4"
 )
 
 type Router struct {
 	Port string
 }
 
-func (r *Router) Set(channelSecret, channelToken, gptApiUrl, gptApiKey string) {
+func (r *Router) Set() {
 	// port setting
 	if r.Port == "" {
 		r.Port = "2001"
@@ -28,39 +25,13 @@ func (r *Router) Set(channelSecret, channelToken, gptApiUrl, gptApiKey string) {
 
 	ctx := context.Background()
 
-	clientBot, err := linebot.New(channelSecret, channelToken)
-
-	// messaging api setting
-	messagingBot, err := messaging_api.NewMessagingApiAPI(
-		channelToken,
-	)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// google drive api setting
-	b, err := ioutil.ReadFile("service-account.json")
-	if err != nil {
-		log.Fatalf("cannot read service account json file: %v", err)
-	}
-
-	driveService, err := drive.NewService(ctx, option.WithCredentialsJSON(b))
-	if err != nil {
-		log.Fatalf("cannot init drive service with credentials json: %v", err)
-	}
-
-	// google sheet api setting
-	sheetService, err := sheets.NewService(ctx, option.WithCredentialsJSON(b))
-	if err != nil {
-		log.Fatalf("cannot init sheet service with credentials json: %v", err)
-	}
+	pkgServices := setup.NewPkgServices(ctx)
 
 	// DI
-	drivePkg := pkg.NewDrive(driveService)
-	sheetPkg := pkg.NewSheet(sheetService)
-	chatAIPkg := pkg.NewChatAI(gptApiUrl, gptApiKey)
-	messagePkg := pkg.NewMessage(channelSecret, clientBot, messagingBot)
+	drivePkg := gcp.NewDrive(pkgServices.GetDrive())
+	sheetPkg := gcp.NewSheet(pkgServices.GetSheet())
+	chatAIPkg := gpt.NewChatAI(pkgServices.GetGpt())
+	messagePkg := line.NewMessage(pkgServices.GetLineBot())
 
 	callbackService := service.NewCallbackService(drivePkg, messagePkg, sheetPkg, chatAIPkg)
 	healthService := service.NewHealthService()
