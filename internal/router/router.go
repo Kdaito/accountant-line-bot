@@ -28,10 +28,10 @@ func (r *Router) Set() {
 	pkgServices := setup.NewPkgServices(ctx)
 
 	// DI
-	drivePkg := gcp.NewDrive(pkgServices.GetDrive())
-	sheetPkg := gcp.NewSheet(pkgServices.GetSheet())
-	chatAIPkg := gpt.NewChatAI(pkgServices.GetGpt())
-	messagePkg := line.NewMessage(pkgServices.GetLineBot())
+	drivePkg := gcp.NewDrive(pkgServices.Drive())
+	sheetPkg := gcp.NewSheet(pkgServices.Sheet())
+	chatAIPkg := gpt.NewChatAI(pkgServices.Gpt())
+	messagePkg := line.NewMessage(pkgServices.LineBot())
 
 	callbackService := service.NewCallbackService(drivePkg, messagePkg, sheetPkg, chatAIPkg)
 	healthService := service.NewHealthService()

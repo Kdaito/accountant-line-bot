@@ -56,19 +56,19 @@ func NewPkgServices(ctx context.Context) *PkgServices {
 	}
 }
 
-func (p *PkgServices) GetDrive() *drive.Service {
+func (p *PkgServices) Drive() *drive.Service {
 	return p.driveService
 }
 
-func (p *PkgServices) GetSheet() *sheets.Service {
+func (p *PkgServices) Sheet() *sheets.Service {
 	return p.sheetService
 }
 
-func (p *PkgServices) GetLineBot() (*linebot.Client, *messaging_api.MessagingApiAPI, string) {
+func (p *PkgServices) LineBot() (*linebot.Client, *messaging_api.MessagingApiAPI, string) {
 	return p.lineBotService.lineBotClient, p.lineBotService.messagingApi, p.lineBotService.channelSecret
 }
 
-func (p *PkgServices) GetGpt() (string, string) {
+func (p *PkgServices) Gpt() (string, string) {
 	return p.gptService.apiUrl, p.gptService.apiKey
 }
 
