@@ -17,7 +17,8 @@ FROM alpine:3.13
 WORKDIR /app
 
 COPY --from=builder /app/server .
-COPY --from=builder /app/service-account.json .
+COPY --from=builder /app/credentials.json .
+COPY --from=builder /app/token.json .
 
 ARG LINE_CHANNEL_SECRET
 ARG LINE_CHANNEL_TOKEN
