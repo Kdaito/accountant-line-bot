@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
@@ -25,24 +26,7 @@ type PkgServices struct {
 }
 
 func NewPkgServices(ctx context.Context) *PkgServices {
-	b, err := os.ReadFile("credentials.json")
-	if err != nil {
-		log.Fatalf("Unable to read authorization code %v", err)
-	}
-
-	config, err := google.ConfigFromJSON(b, sheets.SpreadsheetsScope, drive.DriveScope)
-
-	client := getGcpClient(config)
-
-	driveService, err := drive.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		log.Fatalf("Unable new google drive api service %v", err)
-	}
-
-	sheetService, err := sheets.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		log.Fatalf("Unable new google sheet api service %v", err)
-	}
+	driveService, sheetService := getGcpService(ctx)
 
 	lineBotService := getLineBotService()
 
@@ -70,6 +54,40 @@ func (p *PkgServices) LineBot() (*linebot.Client, *messaging_api.MessagingApiAPI
 
 func (p *PkgServices) Gpt() (string, string) {
 	return p.gptService.apiUrl, p.gptService.apiKey
+}
+
+func getGcpService(ctx context.Context) (*drive.Service, 
+	*sheets.Service) {
+	credentialsJSON := os.Getenv("CREDENTIALS_JSON")
+	cwd, err := os.Getwd()
+	if err != nil {
+			log.Fatalf("Unable to get current working directory: %v", err)
+	}
+	filePath := filepath.Join(cwd, "credentials.json")
+	err = os.WriteFile(filePath, []byte(credentialsJSON), 0644);
+	if err != nil {
+		log.Fatalf("Unable to read credentials.json %v", err)
+	}
+	b, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Fatalf("Unable to read credentials.json %v", err)
+	}
+
+	config, err := google.ConfigFromJSON(b, sheets.SpreadsheetsScope, drive.DriveScope)
+
+	client := getGcpClient(config)
+
+	driveService, err := drive.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		log.Fatalf("Unable new google drive api service %v", err)
+	}
+
+	sheetService, err := sheets.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		log.Fatalf("Unable new google sheet api service %v", err)
+	}
+
+	return driveService, sheetService
 }
 
 type GptService struct {
@@ -120,12 +138,33 @@ func getGcpClient(config *oauth2.Config) *http.Client {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
 	// time.
-	tokFile := "token.json"
-	tok, err := tokenFromFile(tokFile)
+	const TOKEN_FILE = "token.json"
+
+	// 環境変数からtoken-jsonを取得する
+	tokenJSON := os.Getenv("TOKEN_JSON")
+
+	cwd, err := os.Getwd()
 	if err != nil {
-		tok = getTokenFromWeb(config)
-		saveToken(tokFile, tok)
+		log.Fatalf("Unable to get current working directory: %v", err)
 	}
+	filePath := filepath.Join(cwd, TOKEN_FILE)
+
+	// 環境変数にtoken-jsonが設定されている場合は、作業ディレクトリにtoken.jsonとして書き出す
+	if (tokenJSON != "") {
+		err = os.WriteFile(filePath, []byte(tokenJSON), 0644);
+		if err != nil {
+			log.Fatalf("Unable to write file %v", err)
+		}
+	}
+
+	// token.jsonから認証情報を取得する
+	tok, err := tokenFromFile(filePath)
+	if err != nil {
+		// token.jsonが存在しない場合は、認証後token.jsonを作成する
+		tok = getTokenFromWeb(config)
+		saveToken(filePath, tok)
+	}
+
 	return config.Client(context.Background(), tok)
 }
 
@@ -147,7 +186,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	return tok
 }
 
-// Retrieves a token from a local file.
+// token.jsonから認証用トークンを取得する
 func tokenFromFile(file string) (*oauth2.Token, error) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -159,7 +198,7 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	return tok, err
 }
 
-// Saves a token to a file path.
+// 指定されたパス/ファイル名にトークンを保存する
 func saveToken(path string, token *oauth2.Token) {
 	fmt.Printf("Saving credential file to: %s\n", path)
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
