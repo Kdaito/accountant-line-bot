@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -134,7 +134,7 @@ func (c *CallbackService) handleImageContent(parsedMessage *types.ParsedMessage,
 			return err
 		}
 
-		targetFolderId := os.Getenv("DRIVE_FOLDER_ID")
+		targetFolderId := os.Getenv("FOLDER_ID")
 
 		_, err = c.Drive.Move(targetFolderId, sheetForDrive)
 
@@ -160,7 +160,7 @@ func (c *CallbackService) setErrorResponse(err error, w http.ResponseWriter) {
 	var AppErrorType *app_error.AppError
 
 	// エラーログをコンソールに出力するため
-	fmt.Print(err)
+	log.Printf("エラーが発生しました。: %v", err)
 
 	if errors.As(err, &AppErrorType) {
 		w.WriteHeader(err.(*app_error.AppError).Code)

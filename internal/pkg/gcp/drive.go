@@ -33,31 +33,3 @@ func (d *Drive) Move(folderId string, sheetForDrive *types.SheetForDrive) (strin
 
 	return r.Id, nil
 }
-
-// func (d *Drive) transferOwnerShip(fileId, newOwnerEmail string) error {
-// 	permission := &drive.Permission{
-// 		Type:  "user",
-// 		Role:  "writer",
-// 		Value: newOwnerEmail,
-// 	}
-
-// 	res, err := d.Service.Permissions.Insert(fileId, permission).Do()
-
-// 	// 新しいオーナーに編集権限を与える
-// 	if err != nil {
-// 		return fmt.Errorf("Unable to grant write permission: %v", err)
-// 	}
-
-// 	// 新しいオーナーに所有権を移譲する
-// 	permission.Role = "owner"
-
-// 	_, err = d.Service.Permissions.Patch(fileId, res.Id, permission).TransferOwnership(true).Do()
-
-// 	fmt.Print("owner権限を移行しました")
-
-// 	if err != nil {
-// 		return fmt.Errorf("Unable to transfer ownership: %v", err)
-// 	}
-
-// 	return nil
-// }

@@ -73,9 +73,9 @@ func getGcpService(ctx context.Context) (*drive.Service,
 		log.Fatalf("Unable to read credentials.json %v", err)
 	}
 
-	config, err := google.ConfigFromJSON(b, sheets.SpreadsheetsScope, drive.DriveScope)
+	config, err := google.ConfigFromJSON(b, sheets.SpreadsheetsScope, drive.DriveFileScope)
 
-	client := getGcpClient(config)
+	client := getGcpClient(config, ctx)
 
 	driveService, err := drive.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
@@ -134,7 +134,7 @@ func getLineBotService() *LineBotService {
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
-func getGcpClient(config *oauth2.Config) *http.Client {
+func getGcpClient(config *oauth2.Config, ctx context.Context) *http.Client {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
 	// time.
@@ -165,7 +165,7 @@ func getGcpClient(config *oauth2.Config) *http.Client {
 		saveToken(filePath, tok)
 	}
 
-	return config.Client(context.Background(), tok)
+	return config.Client(ctx, tok)
 }
 
 // Request a token from the web, then returns the retrieved token.
