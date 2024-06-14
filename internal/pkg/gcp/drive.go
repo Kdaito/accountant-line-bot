@@ -1,6 +1,7 @@
 package gcp
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/Kdaito/accountant-line-bot/internal/lib/app_error"
@@ -28,7 +29,7 @@ func (d *Drive) Move(folderId string, sheetForDrive *types.SheetForDrive) (strin
 	r, err := d.Service.Files.Update(sheetForDrive.FileId, f).Do()
 
 	if err != nil {
-		return "", app_error.NewAppError(http.StatusInternalServerError, "Unable to upload sheet to Drive.", err)
+		return "", app_error.NewAppError(http.StatusInternalServerError, fmt.Sprintf("Unable to upload sheet [sheet id: %d] to Drive [folder id: %s].", sheetForDrive.SheetId, folderId), err)
 	}
 
 	return r.Id, nil

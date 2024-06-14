@@ -170,12 +170,16 @@ func (c *ChatAI) ScanReceipt(encodedImage string) (*types.Receipt, error) {
 
 	defer response.Body.Close()
 
+	var result types.Receipt
+
 	// gptのレスポンスからjsonのみを取り出す
 	re := regexp.MustCompile("```json\\n((?s:.*?))\\n```")
+	if len(res.Choices) == 0 {
+		result.IsReceipt = false;
+		return &result, nil
+	}
 	match := re.FindStringSubmatch(res.Choices[0].Message.Content)
 	jsonData := match[1]
-
-	var result types.Receipt
 
 	if err := json.Unmarshal([]byte(jsonData), &result); err != nil {
 		return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed unmarshal json of recipt data.", err)

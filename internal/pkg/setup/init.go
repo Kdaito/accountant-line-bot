@@ -73,7 +73,7 @@ func getGcpService(ctx context.Context) (*drive.Service,
 		log.Fatalf("Unable to read credentials.json %v", err)
 	}
 
-	config, err := google.ConfigFromJSON(b, sheets.SpreadsheetsScope, drive.DriveFileScope)
+	config, err := google.ConfigFromJSON(b, sheets.SpreadsheetsScope, drive.DriveScope)
 
 	client := getGcpClient(config, ctx)
 

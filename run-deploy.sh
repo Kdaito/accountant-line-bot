@@ -5,10 +5,10 @@ source ./.env.gcp
 IMAGE_TAG=$ENV_LOCATION-docker.pkg.dev/$ENV_PROJECT_ID/$ENV_REPOSITORY/$ENV_IMAGE
 
 # # イメージをビルド
-# docker build -f Dockerfile.deploy -t $IMAGE_TAG .
+docker build -f Dockerfile.deploy -t $IMAGE_TAG .
 
 # # Artifact Registryにプッシュ
-# docker push $IMAGE_TAG
+docker push $IMAGE_TAG
 
 # Artifact RegistryからCloud Runにデプロイ
 # 環境変数はSecret Managerから取得する
