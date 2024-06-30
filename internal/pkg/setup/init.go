@@ -2,17 +2,11 @@ package setup
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
@@ -25,12 +19,12 @@ type PkgServices struct {
 	gptService     *GptService
 }
 
-func NewPkgServices(ctx context.Context) *PkgServices {
+func NewPkgServices(ctx context.Context, isSkipGpt bool) *PkgServices {
 	driveService, sheetService := getGcpService(ctx)
 
 	lineBotService := getLineBotService()
 
-	gptService := getGptService()
+	gptService := getGptService(isSkipGpt)
 
 	return &PkgServices{
 		driveService:   driveService,
@@ -52,37 +46,35 @@ func (p *PkgServices) LineBot() (*linebot.Client, *messaging_api.MessagingApiAPI
 	return p.lineBotService.lineBotClient, p.lineBotService.messagingApi, p.lineBotService.channelSecret
 }
 
-func (p *PkgServices) Gpt() (string, string) {
-	return p.gptService.apiUrl, p.gptService.apiKey
+func (p *PkgServices) Gpt() (string, string, bool) {
+	return p.gptService.apiUrl, p.gptService.apiKey, p.gptService.isSkipGpt
 }
 
-func getGcpService(ctx context.Context) (*drive.Service, 
+func getGcpService(ctx context.Context) (*drive.Service,
 	*sheets.Service) {
-	credentialsJSON := os.Getenv("CREDENTIALS_JSON")
-	cwd, err := os.Getwd()
+	// 環境変数からシークレットを取得
+	serviceAccountJSON := os.Getenv("SERVICE_ACCOUNT_JSON")
+
+	// シークレットをファイルに書き込む
+	err := os.WriteFile("service-account.json", []byte(serviceAccountJSON), 0644)
+
 	if err != nil {
-			log.Fatalf("Unable to get current working directory: %v", err)
-	}
-	filePath := filepath.Join(cwd, "credentials.json")
-	err = os.WriteFile(filePath, []byte(credentialsJSON), 0644);
-	if err != nil {
-		log.Fatalf("Unable to read credentials.json %v", err)
-	}
-	b, err := os.ReadFile(filePath)
-	if err != nil {
-		log.Fatalf("Unable to read credentials.json %v", err)
+		log.Fatalf("Unable to write file %v", err)
 	}
 
-	config, err := google.ConfigFromJSON(b, sheets.SpreadsheetsScope, drive.DriveScope)
+	// credentials.jsonファイルを読み込む
+	b, err := os.ReadFile("service-account.json")
 
-	client := getGcpClient(config, ctx)
+	if err != nil {
+		log.Fatalf("Unable to write read service-account.json %v", err)
+	}
 
-	driveService, err := drive.NewService(ctx, option.WithHTTPClient(client))
+	driveService, err := drive.NewService(ctx, option.WithCredentialsJSON(b))
 	if err != nil {
 		log.Fatalf("Unable new google drive api service %v", err)
 	}
 
-	sheetService, err := sheets.NewService(ctx, option.WithHTTPClient(client))
+	sheetService, err := sheets.NewService(ctx, option.WithCredentialsJSON(b))
 	if err != nil {
 		log.Fatalf("Unable new google sheet api service %v", err)
 	}
@@ -91,16 +83,18 @@ func getGcpService(ctx context.Context) (*drive.Service,
 }
 
 type GptService struct {
-	apiUrl string
-	apiKey string
+	apiUrl    string
+	apiKey    string
+	isSkipGpt bool
 }
 
-func getGptService() *GptService {
+func getGptService(isSkipGpt bool) *GptService {
 	gptApiUrl := os.Getenv("GPT_API_URL")
 	gptApiKey := os.Getenv("GPT_API_KEY")
 	return &GptService{
-		apiKey: gptApiKey,
-		apiUrl: gptApiUrl,
+		apiKey:    gptApiKey,
+		apiUrl:    gptApiUrl,
+		isSkipGpt: isSkipGpt,
 	}
 }
 
@@ -131,80 +125,4 @@ func getLineBotService() *LineBotService {
 		messagingApi:  messagingApi,
 		channelSecret: channelSecret,
 	}
-}
-
-// Retrieve a token, saves the token, then returns the generated client.
-func getGcpClient(config *oauth2.Config, ctx context.Context) *http.Client {
-	// The file token.json stores the user's access and refresh tokens, and is
-	// created automatically when the authorization flow completes for the first
-	// time.
-	const TOKEN_FILE = "token.json"
-
-	// 環境変数からtoken-jsonを取得する
-	tokenJSON := os.Getenv("TOKEN_JSON")
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("Unable to get current working directory: %v", err)
-	}
-	filePath := filepath.Join(cwd, TOKEN_FILE)
-
-	// 環境変数にtoken-jsonが設定されている場合は、作業ディレクトリにtoken.jsonとして書き出す
-	if (tokenJSON != "") {
-		err = os.WriteFile(filePath, []byte(tokenJSON), 0644);
-		if err != nil {
-			log.Fatalf("Unable to write file %v", err)
-		}
-	}
-
-	// token.jsonから認証情報を取得する
-	tok, err := tokenFromFile(filePath)
-	if err != nil {
-		// token.jsonが存在しない場合は、認証後token.jsonを作成する
-		tok = getTokenFromWeb(config)
-		saveToken(filePath, tok)
-	}
-
-	return config.Client(ctx, tok)
-}
-
-// Request a token from the web, then returns the retrieved token.
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the "+
-		"authorization code: \n%v\n", authURL)
-
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Unable to read authorization code %v", err)
-	}
-
-	tok, err := config.Exchange(context.TODO(), authCode)
-	if err != nil {
-		log.Fatalf("Unable to retrieve token from web %v", err)
-	}
-	return tok
-}
-
-// token.jsonから認証用トークンを取得する
-func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
-	return tok, err
-}
-
-// 指定されたパス/ファイル名にトークンを保存する
-func saveToken(path string, token *oauth2.Token) {
-	fmt.Printf("Saving credential file to: %s\n", path)
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		log.Fatalf("Unable to cache oauth token: %v", err)
-	}
-	defer f.Close()
-	json.NewEncoder(f).Encode(token)
 }

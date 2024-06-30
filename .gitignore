@@ -3,7 +3,6 @@
 
 server.sh
 
-credentials.json
-token.json
+service-account.json
 
 document.txt
