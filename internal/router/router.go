@@ -17,7 +17,7 @@ type Router struct {
 	Port string
 }
 
-func (r *Router) Set() {
+func (r *Router) Set(isSkipGpt bool) {
 	// port setting
 	if r.Port == "" {
 		r.Port = "2001"
@@ -25,7 +25,7 @@ func (r *Router) Set() {
 
 	ctx := context.Background()
 
-	pkgServices := setup.NewPkgServices(ctx)
+	pkgServices := setup.NewPkgServices(ctx, isSkipGpt)
 
 	// DI
 	drivePkg := gcp.NewDrive(pkgServices.Drive())

@@ -10,6 +10,5 @@ docker build \
   --build-arg GPT_API_URL=$ENV_GPT_API_URL \
   --build-arg GPT_API_KEY=$ENV_GPT_API_KEY \
   --build-arg PORT=$ENV_PORT \
-  --build-arg CREDENTIALS_JSON=$ENV_CREDENTIALS_JSON \
-  --build-arg TOKEN_JSON=$ENV_TOKEN_JSON \
+  --build-arg SERVICE_ACCOUNT_JSON=$ENV_SERVICE_ACCOUNT_JSON \
   .

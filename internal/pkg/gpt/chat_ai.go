@@ -13,12 +13,13 @@ import (
 )
 
 type ChatAI struct {
-	apiUrl string
-	apiKey string
+	apiUrl    string
+	apiKey    string
+	isSkipGpt bool
 }
 
-func NewChatAI(apiUrl, apiKey string) *ChatAI {
-	return &ChatAI{apiUrl: apiUrl, apiKey: apiKey}
+func NewChatAI(apiUrl, apiKey string, isSkipGpt bool) *ChatAI {
+	return &ChatAI{apiUrl: apiUrl, apiKey: apiKey, isSkipGpt: isSkipGpt}
 }
 
 // Chat GPT APIに送るプロンプト
@@ -115,6 +116,42 @@ type ResponseMessage struct {
 }
 
 func (c *ChatAI) ScanReceipt(encodedImage string) (*types.Receipt, error) {
+	var result types.Receipt
+
+	// GPTを使用したくない場合はサンプルを返す
+	if c.isSkipGpt {
+		sampleJsonData := `{
+			"isReceipt": true,
+			"date": "2024-05-19",
+			"totalAmount": 386,
+			"totalAmountIncludingTax": 416,
+			"currencySymbol": "¥",
+			"items": [
+				{
+						"name": "カリー屋カレー甘口",
+						"amount": 128,
+						"count": 1
+				},
+				{
+						"name": "ビタミン野菜",
+						"amount": 98,
+						"count": 1
+				},
+				{
+						"name": "鶏むね肉使用キャベツメン",
+						"amount": 200,
+						"count": 1
+				}
+			]
+		}`
+
+		if err := json.Unmarshal([]byte(sampleJsonData), &result); err != nil {
+			return nil, app_error.NewAppError(http.StatusInternalServerError, "Failed unmarshal json of recipt data.", err)
+		}
+
+		return &result, nil
+	}
+
 	var contents []ChatAiRequestContent
 
 	contents = append(contents, ChatAiRequestContent{
@@ -170,12 +207,10 @@ func (c *ChatAI) ScanReceipt(encodedImage string) (*types.Receipt, error) {
 
 	defer response.Body.Close()
 
-	var result types.Receipt
-
 	// gptのレスポンスからjsonのみを取り出す
 	re := regexp.MustCompile("```json\\n((?s:.*?))\\n```")
 	if len(res.Choices) == 0 {
-		result.IsReceipt = false;
+		result.IsReceipt = false
 		return &result, nil
 	}
 	match := re.FindStringSubmatch(res.Choices[0].Message.Content)
